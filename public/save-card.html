@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Save Card</title>
+
+  <!-- Moneris Checkout JS -->
+  <!-- QA -->
+  <script src="https://gateway.moneris.com/chkt/js/chkt_v1.00.js"></script>
+  <!-- PROD (switch when ready) -->
+  <!-- <script src="https://gateway.moneris.com/chkt/js/chkt_v1.00.js"></script> -->
+
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Save your card</h2>
+<div id="monerisCheckout"></div>
+
+<script>
+  // 1️⃣ Get ticket from URL
+  const params = new URLSearchParams(window.location.search);
+  const ticket = params.get('ticket');
+
+  if (!ticket) {
+    alert('Missing Moneris ticket');
+    throw new Error('Missing ticket');
+  }
+
+  // 2️⃣ Start Moneris Checkout
+  const myCheckout = new monerisCheckout();
+
+  myCheckout.setMode('prod'); // change to 'prod' in production
+  myCheckout.setCheckoutDiv('monerisCheckout');
+
+  myCheckout.setCallback('payment_complete', function (response) {
+    console.log('Payment complete:', response);
+    alert('Card saved successfully!');
+    // todo: save the card token data thru shopify api
+    // 
+    // 
+    // 
+    //
+    window.location.href = 'https://dev2diabetesexpress.myshopify.com/account';
+  });
+
+  myCheckout.setCallback('error_event', function (err) {
+    console.error('Moneris error:', err);
+    alert('Moneris error occurred');
+  });
+
+  myCheckout.startCheckout(ticket);
+</script>
+
+</body>
+</html>
