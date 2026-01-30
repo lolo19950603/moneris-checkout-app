@@ -1,1 +1,1 @@
-# moneris-checkou-app
+# moneris-checkout-app
