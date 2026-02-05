@@ -20,3 +20,18 @@ export async function createCheckoutTicket(payload) {
     throw error;
   }
 }
+
+export async function getMonerisReceipt(payload) {
+  try {
+    const res = await fetch("https://gateway.moneris.com/chkt/request/request.php", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: JSON.stringify(payload)
+    });  
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error creating Moneris receipt:', error);
+    throw error;
+  }
+}

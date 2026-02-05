@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import saveCardRoute from './routes/saveCard.js';
+import createSaveCardSessionRoute from './routes/create-save-card-session.js';
 // import chargeCardRoute from './routes/chargeCard.js';
 // import deleteCardRoute from './routes/deleteCard.js';
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 app.use('/save-card', saveCardRoute);
+app.use('/create-save-card-session', createSaveCardSessionRoute);
 // app.use('/charge-card', chargeCardRoute);
 // app.use('/delete-card', deleteCardRoute);
 

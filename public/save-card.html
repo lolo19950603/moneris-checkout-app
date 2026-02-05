@@ -26,10 +26,11 @@
   // 1️⃣ Get ticket from URL
   const params = new URLSearchParams(window.location.search);
   const ticket = params.get('ticket');
+  const customerId = '67417342117' //params.get('customer_id'); //use a specific customer id for now
 
-  if (!ticket) {
-    alert('Missing Moneris ticket');
-    throw new Error('Missing ticket');
+  if (!ticket || !customerId) {
+    alert('Missing ticket or customer ID');
+    throw new Error('Missing required params');
   }
 
   // 2️⃣ Start Moneris Checkout
@@ -38,14 +39,16 @@
   myCheckout.setMode('prod'); // change to 'prod' in production
   myCheckout.setCheckoutDiv('monerisCheckout');
 
-  myCheckout.setCallback('payment_complete', function (response) {
-    console.log('Payment complete:', response);
-    alert('Card saved successfully!');
-    // todo: save the card token data thru shopify api
-    // 
-    // 
-    // 
-    //
+  myCheckout.setCallback('payment_complete', async function (response) {
+    // send ticket to backend to get token
+    const shopify_customer_save_res = await fetch('/save-card/save-to-shopify-customer', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ ticket })
+    });
+
+    const card_data = await shopify_customer_save_res.json();
+    alert("card saved: " + card_data.success);
     window.location.href = 'https://dev2diabetesexpress.myshopify.com/account';
   });
 
@@ -53,6 +56,7 @@
     console.error('Moneris error:', err);
     alert('Moneris error occurred');
   });
+
 
   myCheckout.startCheckout(ticket);
 </script>
