@@ -123,3 +123,57 @@ export async function attachCardToCustomer(customer_id, metaobjectId) {
 
   return true;
 }
+
+export async function getMonersToken(customer_id) {
+  const shop = process.env.SHOPIFY_STORE;
+  const accessToken = process.env.SHOPIFY_ADMIN_TOKEN;
+
+  // 1️⃣ Fetch existing cards using the Metafield query directly
+  let query = `
+    query getCustomerMetafield($id: ID!) {
+      customer(id: $id) {
+        metafield(namespace: "custom", key: "moneris_cards") {
+          value
+        }
+      }
+    }
+  `;
+
+  let queryRes = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+    body: JSON.stringify({ query, variables: { id: customer_id } })
+  });
+
+  let queryData = await queryRes.json();
+  const existing = JSON.parse(queryData?.data?.customer?.metafield?.value || '[]');
+
+
+  query = `
+    query getMetaobject($id: ID!) {
+      metaobject(id: $id) {
+        id
+        type
+        handle
+        fields {
+          key
+          value
+          type
+        }
+      }
+    }
+  `;
+
+  queryRes = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken
+    },
+    body: JSON.stringify({ query, variables: { id: existing[0] } })
+  });
+
+  queryData = await queryRes.json();
+
+  return queryData.data?.metaobject?.fields.find(field => field.key === 'token')?.value;
+}

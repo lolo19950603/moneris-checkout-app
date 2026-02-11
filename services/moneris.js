@@ -1,3 +1,8 @@
+import { spawn } from "child_process";
+import path from "path";
+
+// const JAVA_BIN = process.env.JAVA_BIN || 'java';
+
 /**
  * Create a Moneris Checkout ticket
  * @param {Object} payload - The payload to send to Moneris Checkout
@@ -34,4 +39,53 @@ export async function getMonerisReceipt(payload) {
     console.error('Error creating Moneris receipt:', error);
     throw error;
   }
+}
+
+export function chargeMonerisToken(
+  order_id,
+  data_key,
+  amount,
+  cust_id
+) {
+  return new Promise((resolve, reject) => {
+    const javaProcess = spawn(
+      'java',
+      [
+        "-cp",
+        ".;JavaAPI.jar",
+        "ProdCanadaResPurchaseCC",
+        order_id,
+        data_key,
+        amount,
+        cust_id
+      ],
+      {
+        cwd: path.resolve("./services/moneris-java"),
+        env: {
+          ...process.env,
+        }
+      }
+    );
+
+    let stdout = "";
+    let stderr = "";
+
+    javaProcess.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    javaProcess.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    javaProcess.on("close", (code) => {
+      if (code !== 0) {
+        console.error("Java error:", stderr);
+        return reject(new Error(stderr));
+      }
+
+      // You can return raw output or parse it
+      resolve(stdout);
+    });
+  });
 }

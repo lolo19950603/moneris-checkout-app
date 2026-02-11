@@ -39,7 +39,7 @@
   myCheckout.setMode('prod'); // change to 'prod' in production
   myCheckout.setCheckoutDiv('monerisCheckout');
 
-  myCheckout.setCallback('payment_complete', async function (response) {
+  myCheckout.setCallback('payment_receipt', async function (response) {
     // send ticket to backend to get token
     const shopify_customer_save_res = await fetch('/save-card/save-to-shopify-customer', {
       method: 'POST',
@@ -48,9 +48,12 @@
     });
 
     const card_data = await shopify_customer_save_res.json();
-    alert("card saved: " + card_data.success);
+  });
+
+  myCheckout.setCallback('payment_complete', function (response) {
     window.location.href = 'https://dev2diabetesexpress.myshopify.com/account';
   });
+
 
   myCheckout.setCallback('error_event', function (err) {
     console.error('Moneris error:', err);
