@@ -41,28 +41,84 @@ export async function getMonerisReceipt(payload) {
   }
 }
 
-export function chargeMonerisToken(
+async function resolveMonerisDataKey(data_key) {
+  const value = String(data_key || "");
+
+  // If it's not a Shopify metaobject ID, assume it's already the token
+  if (!value.startsWith("gid://shopify/Metaobject/")) {
+    return value;
+  }
+
+  const shop = process.env.SHOPIFY_STORE;
+  const accessToken = process.env.SHOPIFY_ADMIN_TOKEN;
+
+  if (!shop || !accessToken) {
+    throw new Error("SHOPIFY_STORE or SHOPIFY_ADMIN_TOKEN is not set");
+  }
+
+  const query = `
+    query getMonerisCardMetaobject($id: ID!) {
+      metaobject(id: $id) {
+        id
+        fields {
+          key
+          value
+        }
+      }
+    }
+  `;
+
+  const res = await fetch(`https://${shop}/admin/api/2024-07/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": accessToken
+    },
+    body: JSON.stringify({ query, variables: { id: value } })
+  });
+
+  const json = await res.json();
+
+  if (json.errors) {
+    console.error("resolveMonerisDataKey GraphQL errors:", json.errors);
+    throw new Error("Failed to fetch moneris_card metaobject");
+  }
+
+  const fields = json.data?.metaobject?.fields || [];
+  const tokenField = fields.find((f) => f.key === "token");
+  const token = tokenField?.value;
+
+  if (!token) {
+    throw new Error("Moneris token not found on moneris_card metaobject");
+  }
+
+  return token;
+}
+
+export async function chargeMonerisToken(
   order_id,
   data_key,
   amount,
   cust_id
 ) {
+  const resolvedDataKey = await resolveMonerisDataKey(data_key);
+
   return new Promise((resolve, reject) => {
     const javaProcess = spawn(
-      'java',
+      "java",
       [
         "-cp",
         ".;JavaAPI.jar",
         "ProdCanadaResPurchaseCC",
         order_id,
-        data_key,
+        resolvedDataKey,
         amount,
         cust_id
       ],
       {
         cwd: path.resolve("./services/moneris-java"),
         env: {
-          ...process.env,
+          ...process.env
         }
       }
     );
@@ -84,7 +140,6 @@ export function chargeMonerisToken(
         return reject(new Error(stderr));
       }
 
-      // You can return raw output or parse it
       resolve(stdout);
     });
   });
