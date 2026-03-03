@@ -8,7 +8,7 @@ import createCustomerSessionRoute from './routes/createCustomerSessionRoute.js';
 import chargeCardRoute from './routes/chargeCard.js';
 import subscriptionRoute from "./routes/subscription.js";
 import { runDailySubscriptionBilling } from './services/subscription.js'
-// import deleteCardRoute from './routes/deleteCard.js';
+import deleteCardRoute from './routes/deleteCard.js';
 
 const app = express();
 app.use(cors({
@@ -23,7 +23,7 @@ app.use('/save-card', saveCardRoute);
 app.use('/create-customer-session', createCustomerSessionRoute);
 app.use('/charge-card', chargeCardRoute);
 app.use("/api/subscription", subscriptionRoute);
-// app.use('/delete-card', deleteCardRoute);
+app.use('/card', deleteCardRoute);
 
 app.listen(3000, () =>
   console.log('moneris checkout app running on http://localhost:3000')
