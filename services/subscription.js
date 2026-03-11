@@ -353,7 +353,8 @@ async function updateSubscriptionMetaobjectFields({
   id,
   next_billing_date,
   status,
-  last_billed_order_id
+  last_billed_order_id,
+  last_billed_at
 }) {
   const shop = process.env.SHOPIFY_STORE;
   const accessToken = process.env.SHOPIFY_ADMIN_TOKEN;
@@ -378,6 +379,13 @@ async function updateSubscriptionMetaobjectFields({
     fields.push({
       key: "last_billed_order_id",
       value: String(last_billed_order_id)
+    });
+  }
+
+  if (last_billed_at) {
+    fields.push({
+      key: "last_billed_at",
+      value: String(last_billed_at)
     });
   }
 
@@ -955,7 +963,8 @@ export async function runDailySubscriptionBilling(dryRun = false) {
         id: subscription.id,
         next_billing_date: nextBillingDate,
         status: "active",
-        last_billed_order_id: orderId
+        last_billed_order_id: orderId,
+        last_billed_at: getTodayET()
       });
 
       succeeded += 1;

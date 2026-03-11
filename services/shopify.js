@@ -1,7 +1,15 @@
+function normalizeCustomerGid(custId) {
+  if (!custId) return null;
+  const s = String(custId).trim();
+  if (s.startsWith("gid://shopify/Customer/")) return s;
+  return `gid://shopify/Customer/${s}`;
+}
+
 export async function createMonerisCardMetaobject({
   token,
   last4,
-  expiry_date
+  expiry_date,
+  customer_id
 }) {
   const shop = process.env.SHOPIFY_STORE;
   const accessToken = process.env.SHOPIFY_ADMIN_TOKEN;
@@ -15,6 +23,17 @@ export async function createMonerisCardMetaobject({
     }
   `;
 
+  const fields = [
+    { key: "token", value: token },
+    { key: "last4", value: last4 },
+    { key: "expiry", value: expiry_date },
+  ];
+
+  const customerGid = normalizeCustomerGid(customer_id);
+  if (customerGid) {
+    fields.push({ key: "customer_id", value: customerGid });
+  }
+
   const variables = {
     metaobject: {
       type: "moneris_card",
@@ -23,11 +42,7 @@ export async function createMonerisCardMetaobject({
           status: "ACTIVE"
         }
       },
-      fields: [
-        { key: "token", value: token },
-        { key: "last4", value: last4 },
-        { key: "expiry", value: expiry_date },
-      ]
+      fields
     }
   };
 

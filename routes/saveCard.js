@@ -48,10 +48,11 @@ router.post('/save-to-shopify-customer', async (req, res) => {
     const first6last4 = receipt.response?.receipt?.cc?.first6last4;
     const last4 = first6last4.slice(-4);
     const expiry_date = receipt.response?.receipt?.cc?.expiry_date;
-    const card_data = { //use static customer id for now
+    const card_data = {
       token: token,
       last4: last4,
-      expiry_date: expiry_date
+      expiry_date: expiry_date,
+      customer_id: cust_id
     };
     // 2. Create a metaobject in Shopify to store the card data
     const shopify_metaobject_id = await createMonerisCardMetaobject(card_data);
