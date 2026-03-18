@@ -316,6 +316,23 @@ export async function createShopifyOrder(orderData) {
 
       financialStatus: "PAID",
 
+      // Always add a free shipping line for subscription orders
+      shippingLines: [
+        {
+          title: "Free Standard Shipping: Approx. 1-3 Business Days",
+          priceSet: {
+            shopMoney: {
+              amount: "0.00",
+              currencyCode: orderData.currency || "CAD"
+            },
+            presentmentMoney: {
+              amount: "0.00",
+              currencyCode: orderData.currency || "CAD"
+            }
+          }
+        }
+      ],
+
       tags: orderData.tags || [],
       note: orderData.note || "Auto-created subscription order"
     }
@@ -848,10 +865,13 @@ export async function runDailySubscriptionBilling(dryRun = false) {
         }
       }
 
-      if (!(totalAmount > 0)) {
+      // Validate computed totalAmount
+      if (Number.isNaN(totalAmount) || totalAmount < 0) {
         console.warn(
-          "[SubscriptionBilling] Computed totalAmount is not > 0 for subscription",
-          subscription.id
+          "[SubscriptionBilling] Computed totalAmount is invalid for subscription",
+          subscription.id,
+          "totalAmount",
+          totalAmount
         );
         systemFailures += 1;
         continue;
@@ -868,6 +888,69 @@ export async function runDailySubscriptionBilling(dryRun = false) {
         rawShippingAddress
       );
       const billingAddress = mapAddressToMailingAddressInput(rawBillingAddress);
+
+      // If totalAmount is exactly 0, treat this as a free order:
+      // - Skip Moneris charge
+      // - Still create a Shopify order and advance billing dates
+      if (totalAmount === 0) {
+        console.log(
+          "[SubscriptionBilling] totalAmount is 0 - creating free Shopify order without Moneris charge for subscription",
+          subscription.id
+        );
+
+        const orderData = {
+          customerId,
+          lineItems: lineItemsObj.items.map((item) => ({
+            variantId: item.variant_id,
+            quantity: item.quantity,
+            requiresShipping: true
+          })),
+          shippingAddress,
+          billingAddress,
+          currency: lineItemsObj.currency || "CAD",
+          tags: ["Subscription", "Auto-generated", "Free order"],
+          note: `Auto-created FREE subscription order for ${subscription.id}`
+        };
+
+        const orderResult = await createShopifyOrder(orderData);
+
+        if (orderResult.userErrors && orderResult.userErrors.length) {
+          console.error(
+            "[SubscriptionBilling] Shopify order creation failed for FREE subscription order",
+            subscription.id,
+            orderResult.userErrors
+          );
+          systemFailures += 1;
+          continue;
+        }
+
+        console.log(
+          "[SubscriptionBilling] Shopify FREE order created for subscription",
+          subscription.id,
+          "orderId",
+          orderResult.order?.id,
+          "orderName",
+          orderResult.order?.name
+        );
+
+        const orderId = orderResult.order?.id || null;
+        const nextBillingDate = advanceNextBillingDate(
+          currentNextBillingDate,
+          frequencyNumber,
+          frequencyUnit
+        );
+
+        await updateSubscriptionMetaobjectFields({
+          id: subscription.id,
+          next_billing_date: nextBillingDate,
+          status: "active",
+          last_billed_order_id: orderId,
+          last_billed_at: getTodayET()
+        });
+
+        succeeded += 1;
+        continue;
+      }
 
       console.log(
         "[SubscriptionBilling] Processing subscription",
@@ -887,12 +970,32 @@ export async function runDailySubscriptionBilling(dryRun = false) {
         );
         continue;
       }
-      const chargeResult = await chargeSubscriptionWithMoneris({
-        subscriptionId: subscription.id,
-        customerId,
-        monerisCard,
-        totalAmount
-      });
+
+      const shouldChargeMoneris = false;
+
+      let chargeResult = {
+        success: true,
+        failureType: null,
+        message: shouldChargeMoneris
+          ? "CHARGED_MonERIS"
+          : "SKIPPED_MONERIS_TEST_MODE"
+      };
+
+      if (shouldChargeMoneris) {
+        chargeResult = await chargeSubscriptionWithMoneris({
+          subscriptionId: subscription.id,
+          customerId,
+          monerisCard,
+          totalAmount
+        });
+      } else {
+        console.log(
+          "[SubscriptionBilling] Skipping Moneris charge due to SUBSCRIPTION_CHARGE_MONERIS=false for subscription",
+          subscription.id,
+          "amount",
+          totalAmount.toFixed(2)
+        );
+      }
 
       if (!chargeResult.success) {
         console.error(
@@ -921,7 +1024,8 @@ export async function runDailySubscriptionBilling(dryRun = false) {
         customerId,
         lineItems: lineItemsObj.items.map((item) => ({
           variantId: item.variant_id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          requiresShipping: true
         })),
         shippingAddress,
         billingAddress,

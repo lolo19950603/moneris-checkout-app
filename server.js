@@ -29,7 +29,7 @@ app.listen(3000, () =>
   console.log('moneris checkout app running on http://localhost:3000')
 );
 
-const dryRun = process.env.SUBSCRIPTION_BILLING_DRY_RUN === false;
+const dryRun = false;
 
 runDailySubscriptionBilling(dryRun).catch((err) => {
   console.error('Error running daily subscription billing:', err);
